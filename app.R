@@ -29,7 +29,14 @@ ui <- fluidPage(
        #),
       # mainPanel(plotOutput(outputId = "hist"))
      #),
-   tabPanel("Dispersão",tabsetPanel(tabPanel("Chegadas x tempo atendimento",plotOutput("ana_che"))))
+   navbarPage(title="Filas",
+              tabPanel("Descrição",
+              tabsetPanel(tabPanel("Gráfico",plotOutput("ana_che")),
+                          tabPanel("Tempo de atendimento",plotOutput("temp_at")),
+                          tabPanel("Tempo de espera",plotOutput("temp_che")))
+              ),
+              tabPanel("Filas",tabsetPanel(id="Gráfico",plotOutput("ate")))
+   )
    )
    
    server <- function(input, output) {
@@ -38,12 +45,89 @@ ui <- fluidPage(
      tempo_atendimento <- read.csv("C:\\Users\\ruben\\Downloads\\Estatística\\trabalho_filas\\base_filas-tempo_atendimento.csv")
      #df <- data.frame(chegadas)
      
+     
      #output$hist <- renderPlot({hist(rnorm(input$num))})
      
      output$ana_che<-renderPlot({
-       ggplot(data.frame(chegadas$min), aes(x=a, y=b))+
+       ggplot(data.frame(chegadas$min), aes(x=chegadas$min, y=chegadas$nc))+
          geom_point(aes(x=chegadas$min,y=chegadas$nc))
      })
+     
+     
+     output$temp_at<-renderPlot({
+    
+       ### Visualizando o problema ----
+       
+       plot(tempos_atendimentos_acum/60 + 11,tempos_chegadas_acum/60 + 11,
+            type ="l",
+            xlab = "Tempo de atendimento (1 atendente)",
+            ylab = "Tempo de chegada ",
+            main = "Instantes no tempo (10h Ã s 16h)")
+       
+     })
+     
+     output$temp_che<-renderPlot({
+       plot(1:n_clientes_entrada,
+            tempo_espera,
+            type ="l",
+            xlab = "Cliente",
+            ylab = "Tempo de espera ",
+            main = "Tempo de espera por cliente (10h Ã s 16h)")
+       
+     })
+     
+     
+     ## Ritmo de chegada ----
+     
+     lambda <- mean(chegadas$nc)
+     
+     ## Tempo mÃ©dio entre chegadas
+     mu_chegadas <- 1/lambda
+     
+     
+     ## Ritmo mÃ©dio de atendimento
+     tea <- mean(tempo_atendimento$x)
+     
+     mu_atendimentos <- 1/tea
+     
+     
+     
+     ### SimulaÃ§Ã£o 1 (bÃ¡sica) ----
+     N <-  1000
+     
+     # instante no tempo em 16h
+     t_max <- 60*(16-11 )
+     
+     # semente aleatÃ³ria
+     set.seed(28052019)
+     
+     # simulando tempo entre chegadas
+     tempos_chegadas <- rexp( N ,rate = mu_chegadas)
+     
+     # verificando instantes no tempo
+     tempos_chegadas_acum <- cumsum(tempos_chegadas)
+     
+     # Filtrando clientes que chegaram depois das 16h
+     tempos_chegadas_acum <- tempos_chegadas_acum[tempos_chegadas_acum<=t_max]
+     
+     # nÃºmero de clientes entre 11h e 16h
+     n_clientes_entrada <- length(tempos_chegadas_acum)
+     
+     # tempo de atendimento de cada cliente
+     tempos_atendimentos <- rexp(n = n_clientes_entrada,rate = mu_atendimentos)
+     
+     
+     # tempo de atendimento de cada cliente (considerando 1 atendente)
+     tempos_atendimentos_acum <- cumsum(tempos_atendimentos)
+     
+     
+     ### Taxa de utilizaÃ§Ã£o dos atendentes ----
+     
+     rho <- lambda/( 1 * mu_atendimentos )
+     
+     # Calculando tempo de espera
+     tempo_espera <- tempos_atendimentos_acum - tempos_chegadas_acum
+     
      
      
    }
