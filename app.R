@@ -34,7 +34,7 @@ ui <- fluidPage(
               tabsetPanel(tabPanel("Gráfico",plotOutput("ana_che")),
                           #tabPanel("Tempo de atendimento",plotOutput("temp_at")),
                           #tabPanel("Tempo de espera",plotOutput("temp_che")),
-                          tabPanel("reativo", sidebarLayout(
+                          tabPanel("Vizualizando", sidebarLayout(
                               sidebarPanel(
                                numericInput(inputId = "num",
                                            label = "Número  de atendentes",
@@ -42,12 +42,22 @@ ui <- fluidPage(
                             
                             ),
                              mainPanel(plotOutput(outputId = "hist"))
-                            ))
+                            )),
+                          tabPanel("Tempo de espera", sidebarLayout(
+                            sidebarPanel(
+                              numericInput(inputId = "num_temp",
+                                           label = "Número  de atendentes",
+                                           value = 1)
+                              
+                            ),
+                            mainPanel(plotOutput(outputId = "tempo"))
+                          ))
                           )
+              )
               ),
               tabPanel("Filas",tabsetPanel(id="Gráfico",plotOutput("ate")))
    )
-   )
+   
    
    server <- function(input, output) {
      
@@ -63,6 +73,48 @@ ui <- fluidPage(
          geom_point(aes(x=chegadas$min,y=chegadas$nc))
      })
      
+     output$tempo<-renderPlot({
+       lambda <- mean(chegadas$nc)
+       
+       mu_chegadas <- 1/lambda
+       
+       
+       tea <- mean(tempo_atendimento$x)
+       
+       mu_atendimentos <- input$num_temp/tea
+
+       N <-  1000
+       
+       t_max <- 60*(16-11 )
+       
+       set.seed(28052019)
+       
+       tempos_chegadas <- rexp( N ,rate = mu_chegadas)
+       
+       tempos_chegadas_acum <- cumsum(tempos_chegadas)
+       
+       tempos_chegadas_acum <- tempos_chegadas_acum[tempos_chegadas_acum<=t_max]
+       
+       n_clientes_entrada <- length(tempos_chegadas_acum)
+       
+       tempos_atendimentos <- rexp(n = n_clientes_entrada,rate = mu_atendimentos)
+       
+       tempos_atendimentos_acum <- cumsum(tempos_atendimentos)
+       
+       rho <- lambda/( 1 * mu_atendimentos )
+       
+       
+      
+       tempo_espera <- tempos_atendimentos_acum - tempos_chegadas_acum
+       
+       
+       plot(1:n_clientes_entrada,
+            tempo_espera,
+            type ="l",
+            xlab = "Cliente",
+            ylab = "Tempo de espera ",
+            main = "Tempo de espera por cliente (10h Ã s 16h)")
+     })
      
      
      output$hist<-renderPlot({
@@ -122,7 +174,7 @@ ui <- fluidPage(
             type ="l",
             xlab = "Tempo de atendimento dos atendentes",
             ylab = "Tempo de chegada ",
-            main = "Instantes no tempo (10h Ã s 16h)")
+            main = "Instantes no tempo (10h as 16h)")
      })
      
     
